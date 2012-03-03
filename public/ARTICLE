@@ -1,0 +1,168 @@
+Seguimiento de códigos usando MongoDB
+=======================================
+Mongo?
+------
+
+Lindo nombre que le pusieron para una base de datos, no? Mongo viene de "hu*mongo*us" que significa enorme, el nombre viene porque está pensada para ser una base de datos altamente escalable, con buen rendimiento. Más técnicamente es una base de datos NoSql, orientada al almacenamiento de documentos tal como CouchDB, es *schema free*, algunos de sus features -directamente robados de su propia página- son:
+
+-	Indexación (Para aumentar la respuesta de algunas consultas)
+-	Fácil de Replicar (Se pueden hacer mirrors en una LAN o WAN)
+-	Auto Sharding (Se puede separar en varias instancias para escalar horizontalmente)
+-	Consultable (Se pueden hacer queries basadas en la estructura documental)
+-	Map/Reduce (Permite hacer procesamiento de datos más potentes)
+-	GridFS (Sistema de archivos para guardar la información de la BD)
+-	Alto performance (Mongo está pensado para ser rápida, a costa de cosas flexibles que quiten velocidad)
+
+El proyecto de hoy
+-------------------
+
+Hoy intentaré hacer un sistema que guarde información proveída por el usuario respecto a productos que se pueden identificar por su código de barras. El código de barras es un identificador único de producto, pero la información relativa a ese producto está contextualizada a la base de datos que la contiene, por ejemplo, los supermercados tienen el precio, nombre y stock, las empresas que lo producen tienen el costo de producirlo, los pedidos de ese producto, las empresas de transporte tienen *idealmente* la idea de en donde se encuentra tu pedido... Nuestra idea es hoy darle más información aún a ese código y dejar que la comunidad coopere con entregar más información. Por ejemplo: Cuanto me costó el producto en cierto lugar y en cierta fecha, de que material es la envoltura (se podrá reciclar?), que tal me pareció el producto, etc.
+
+Base de datos documental
+-------------------------
+
+Por qué una base de datos documental para esto? Seguro se te ocurre como hacerlo en una MySql común o una BigTable en Google AppEngine. Bueno, por qué no en realidad. El objetivo de este pequeño producto es hacerle un seguimiento al código de barras, por lo que es muy factible que podamos hablar de una gran colección de datos respecto a un elemento en particular, el concepto de documentos suena bastante buena idea al respecto. Además, al ser schema free, podemos seguir haciendo crecer el modelo sin andar preocupandonos de la estructura de tablas.
+
+Eso si, hay que tener en cuenta que MongoDB no versiona sus documentos, el documento en que trabajas es el oficial, cuando lo cambias, la historia pasada se acabó. Como esto es para aprender da lo mismo, pero quizás interesaba saber la información del documento como también la evolución de esa información.
+
+Puesta a punto: Elección de componentes
+----------------
+
+Fue suficiente explicación, ahora a lo técnico. Como es la idea durante este periodo, la aplicación deberá funcionar en la nube, para almacenar la información usaré MongoLab que es un servicio de almacenamiento Mongo en nube, asi no debo ni preocuparme de instalar el motor de la BD. Como la idea es explicar la capacidad de trabajar con MongoDB y MongoLab expone una API REST (aunque no es lo óptimo en performance), vamos a trabajar la capa de presentación y de negocios en JQuery Mobile trabajando de manera local, eso lo puedes exponer a la nube también, donde quieras.
+
+Espero que pronto podamos hacer una explicación similar a esta pero con Rails sobre Heroku y MongoHQ usando el driver de MongoDB, para que puedan conocer metodologías similares usando distintos medios.
+
+Elegí MongoLab porque su plan gratuito es mejor que el de MongoHQ y me deja elegir cosas irrelevante como por ejemplo sobre qué nube quiero mi aplicación montada. 
+
+Comenzando el desarrollo
+------------------------
+
+Primero, vamos a OpenShift a crear un nuevo proyecto. Hay un articulo anterior que usa OpenShift, ahi puedes ver más detalles sobre esta operación. También vamos a crear una base de datos en MongoLab para poder guardar la información necesaria. Luego de crear una base de datos, vamos a también crear una colección que la llamaremos barcode. Anota tu API key, la vas a necesitar!
+
+Para no complicarnos con versiones y demases de rails, OpenShift tiene un [proyecto base en Github](https://github.com/openshift/rails-example "Proyecto Base en GitHub") desde donde comenzar.
+
+Jugando con la API de MongoLab
+--------------------------------
+
+Hacer la parte de Rails al menos en este ejemplo es solamente para usar de placeholder, asi que vamos a enfocarnos a la comunicación con la API de MongoLab.
+
+Dentro de tu base de datos de MongoLab, en la lista de las colecciones, puedes hacer click sobre Open API view, que te dará una manera cómoda de conectarte con la base de datos, y de paso te ahorras andar hablando por curl con la bd.
+
+Vamos a probard agregar un producto, por ejemplo, un libro de BPMN. Hay que hacer un POST con la siguiente información:
+
+	{"code":"9789563451825","name":"BPMN 2.0 Manual de Referencia y Guía Practica","authors":["Jakob Freund","Bernd Rücker","Bernhard Hitpass"],"pages":283,"cost":25000,"currency":"CLP","type":"book","subtype":"reference"}
+
+Como resultado me llega un OK indicando que la operación está completada, bueno, no un OK, sino que el JSON del nuevo objeto creado en la colección:
+
+	[
+    {
+        "_id": {
+            "$oid": "4f523029e4b0a247f529a556"
+        },
+        "code": "9789563451825",
+        "name": "BPMN 2.0 Manual de Referencia y Guía Practica",
+        "authors": [
+            "Jakob Freund",
+            "Bernd Rücker",
+            "Bernhard Hitpass"
+        ],
+        "pages": 283,
+        "cost": 25000,
+        "currency": "CLP",
+        "type": "book",
+        "subtype": "reference"
+    }
+	]
+
+Para agregar un nuevo elemento, hago un nuevo POST
+
+	{
+    "code":"885909361977",
+    "name":"iPhone 3GS",
+    "type":"phone",
+    "subtype":"smartphone",
+    "colour":"black",
+    "storage":16,
+    "storage-unit":"gigabyte",
+    "manufacturer":"Apple Inc"
+	}
+
+Ahora para ver mis objetos en mi colección, entro a https://api.mongolab.com/api/1/databases/codellector/collections/barcodes?apiKey=API_KEY , no es muy bonito lo que sale, pero significa que están en la base de datos la información que colocaste. También, si quieres ver un objeto en particular, pides por GET https://api.mongolab.com/api/1/databases/codellector/collections/barcodes/ID?apiKey=API_KEY y estás. 
+
+Si quieres hacer una búsqueda, como por ejemplo, por el código, debes hacer un query, la más simple es la que sigue: https://api.mongolab.com/api/1/databases/codellector/collections/barcodes/?q={code:"9789563451825"}&apiKey=API_KEY
+
+No ven algo extraño en esto? Tenemos un campo code que es el identificador del objeto, que en este caso es un código, que ya de por si es único, para que hacemos OTRO codigo para un código?
+Esto es porque generalmente estamos acostumbrados al GET y al POST, pero que hay de los otros verbos HTTP?
+Entonces, como hacemos para aprovechar todo esto mediante el API, hagamos que el codigo sea la llave, el formato es el siguiente
+
+	PUT /api/1/databases/DATABASE/collections/COLLECTION/CODIGO
+
+	{"name":"BPMN 2.0 Manual de Referencia y Guía Practica","authors":["Jakob Freund","Bernd Rücker","Bernhard Hitpass"],"pages":283,"cost":25000,"currency":"CLP","type":"book","subtype":"reference"}
+
+
+No debes memorizar esto, en la misma página de pruebas hay una ayuda memoria y también puedes ir a ver la [documentación completa del API](http://support.mongolab.com/entries/20433053-rest-api-for-mongodb) por si te quedan dudas.
+
+La aplicación
+--------------
+
+Como les conté hace unos momentos, haremos una aplicación en JQuery Mobile, si ven el [proyecto RailsCodellector en GitHub](https://github.com/lomefin/railscodellector), verán todo un proyecto de rails, esto se debe a que en un comienzo se iba a hacer un tutorial más pesado, pero ahora solo estaremos usando la carpeta prototype que es JQM, más adelante estará el proyecto corriendo sobre rails.
+
+Siguiendo los preceptos de JQuery Mobile, haremos multiples páginas, para este ejemplo tendremos:
+
+- index.html (Página principal)
+- query.html (Página para consultar un código)
+- add.html (Página para agregar un nuevo código)
+
+### Consultando un código
+
+Lo más importante de query.html será la parte en donde se colocan los contenedores principales:
+
+	<div data-role="content">
+		<div data-role="fieldcontain">
+			<input type="search" name="code-search" id="code-search" value="" placeholder="Ingresa el código aquí" />
+		</div>
+		<button type="submit" id="code-search-button" >Buscar</button>
+
+		<div id="query-result">
+			<div id="query-result-header"></div>
+			<div id="query-result-content"></div>
+		</div>
+	</div>
+
+Y la parte en que se hace el request a la API de MongoLab:
+
+	$("#code-search-button").click(function() {
+            var theName = $.trim($("#code-search").val());
+
+            if(theName.length > 0)
+            {
+                $.ajax({
+                  type: "GET",
+                  url: "https://api.mongolab.com/api/1/databases/codellector/collections/barcodes/",
+                  data: ({"apiKey": "API_KEY",
+                  		"q":'{code:"'+theName+'"}',
+                  		"fo":"true"}),
+                  cache: false,
+                  success: onSuccess
+                });
+            }
+        });
+
+Luego se hace un método que muestra la información correspondiente a los datos que lleguen, el código es bastante largo pues tiene algún tipo de selección de contenidos asi que les recomiendo que vean el [código directamente en GitHub](https://github.com/lomefin/railscodellector/blob/master/prototype/query.html).
+
+### Agregando un código
+
+Lo principal de la página es el envío de información al servidor:
+
+	$.ajax({
+          type: "POST",
+          url: "https://api.mongolab.com/api/1/databases/codellector/collections/barcodes/?apiKey=API_KEY",
+          data: JSON.stringify({"_id":theCode}),
+          cache: false,
+          success: onSuccess,
+          contentType: "application/json"
+        });
+
+**Aviso**: yo dije que lo óptimo era hacer PUT, pero jQuery.ajax se [complica un poco enviando PUT al servidor](http://homework.nwsnet.de/news/9132_put-and-delete-with-jquery), asi que usé un método alternativo, pero siguiendo con la regla que el código es el único código que necesitamos. Lo que se hace es que se "sugiere poderosamente" que el id del objeto sea aquel que nosotros enviamos. Perdemos la ventaja de los verbos de HTTP pero nos da flexibilidad porque básicamente este mismo método se usa para actualizar objetos.
+
+
