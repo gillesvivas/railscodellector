@@ -1,0 +1,165 @@
+<!DOCTYPE html> 
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1"> 
+	<title>Agrega un código</title>
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.0.1/jquery.mobile-1.0.1.min.css" />
+	
+	<script src="http://code.jquery.com/jquery-1.6.4.min.js"></script>
+	<script src="http://code.jquery.com/mobile/1.0.1/jquery.mobile-1.0.1.min.js"></script>
+</head>
+<body>
+<script>
+
+	var d = {};
+	if (typeof String.prototype.startsWith != 'function') {
+	  String.prototype.startsWith = function (str){
+	    return this.indexOf(str) == 0;
+	  };
+	}
+      var extra_fields_count = 1;
+      var custom_fields_count = 1;
+
+      $(function() {
+
+        $("#code-add-button").click(function() {
+            var p = {};
+            var theCode = $.trim($("#code-add").val());
+            var theName = $.trim($("#name-add").val());
+            //Add the custom fields first so we can overwrite with extra fields
+            $.each($("#custom_fields .custom_field"),function()
+            {
+                  var field_name = $(this).find(".field_name").val(); 
+                  var field_value = $(this).find(".field_value").val(); 
+                  if(field_name.length * field_value.length >0)
+                        p[field_name] = field_value;
+            });
+            $.each($("#extra_fields .extra_field"),function()
+            {
+                  var field_name = $(this).find("select").val(); 
+                  var field_value = $(this).find("input").val(); 
+                   if(field_name.length * field_value.length >0)
+                        p[field_name] = field_value;
+            });
+            if(theCode.length > 0 && theName.length > 0)
+            {
+                  p._id = theCode;
+                  p.name = theName;
+                $.ajax({
+                  type: "POST",
+                  url: "https://api.mongolab.com/api/1/databases/codellector/collections/barcodes/"+
+                        "?apiKey=4f520e86e4b0f7e90235c6e8",
+                  data: JSON.stringify(p),
+                  cache: false,
+                  success: onSuccess,
+                  contentType: "application/json"
+                });
+            }
+        });
+      
+        $("#add-custom-field-button").click(function() {
+            
+            var custom_fields = $("#custom_fields");
+
+            var custom_field_container = $('<div class="custom_field" >');
+            var custom_field = $("<input type='text' class='field_name' placeholder='Nombre de tu campo'>");
+            custom_field.attr("id","custom_field_"+custom_fields_count++);
+            custom_field.attr("name",custom_field.attr("id"));
+
+            custom_field_container.append(custom_field);
+
+            custom_field_value = $("<input type='text' class='field_value' placeholder='Valor de tu campo'>");
+            custom_field_value.attr("id",custom_field.attr("id")+"_value");
+            custom_field_value.attr("name",custom_field.attr("name")+"_value");
+
+            custom_field_container.append(custom_field_value);
+
+            custom_fields.append(custom_field_container);
+        });
+        $("#add-extra-field-button").click(function() {
+            
+            var extra_fields = $("#extra_fields");
+
+            var extra_field_container = $('<div class="extra_field" >');
+            var extra_field = $("<select>");
+            extra_field.attr("id","extra_field_"+extra_fields_count++);
+            extra_field.attr("name",extra_field.attr("id"));
+
+            extra_field.append($('<option value="type">Type</option>'));
+            extra_field.append($('<option value="subtype">Subtype</option>'));
+            extra_field.append($('<option value="price">Price</option>'));
+            extra_field.append($('<option value="is_recyclable">Is Recycable?</option>'));
+
+            extra_field_container.append(extra_field);
+
+            extra_field_value = $("<input type='text'  placeholder='Valor de tu campo'>");
+            extra_field_value.attr("id",extra_field.attr("id")+"_value");
+            extra_field_value.attr("name",extra_field.attr("name")+"_value");
+
+            extra_field_container.append(extra_field_value);
+
+            extra_fields.append(extra_field_container);
+        });
+        function onSuccess(data)
+        {
+        	$('<div><h1>Creado</h1><p>Objeto creado</p></div>').dialog();
+        }
+
+    });
+</script>
+<div data-role="page">
+	<div data-role="header">
+		<h1>Consulta de código</h1>
+	</div>
+	<div data-role="content">
+		<input type="text" name="code-add" id="code-add" placeholder="Ingresa el código aquí" />
+            <br />
+            <input type="text" name="name-add" id="name-add" value="" placeholder="Ingresa el nombre aquí" />
+            
+		<button type="submit" id="code-add-button" data-theme="e" >Agregar</button>
+
+            <h2>O.... puedes agregar más datos</h2>
+            <div id="extra_fields">
+                  <div class="extra_field">   
+                        <select name="extra_field_1" id="extra_field1">
+                              <option value="type">Type</option>
+                              <option value="subtype">Subtype</option>
+                              <option value="price">Price</option>
+                              <option value="is_recyclable">Is Recycable?</option>
+                        </select>
+                        <input type="text" name="extra_field_1_value"  id="extra_field1_value" placeholder="Valor del campo"/>
+                  </div>
+            </div>
+            <fieldset class="ui-grid-b" style="clear:both">
+                  <div class="ui-block-a"></div>
+                  <div class="ui-block-b"></div>
+                  <div class="ui-block-c">
+                        <a data-role="button" data-inline="true" data-theme="b" data-icon="plus" data-iconpos="top" id="add-extra-field-button">Agregar otro dato</a>
+                  </div>
+            </fieldset>
+            <h2>O.... puedes agregar tus propios datos</h2>
+            <div id="custom_fields">
+                  <div class="custom_field">   
+                        <input type="text" name="custom_field_1"  id="custom_field_1" placeholder="Nombre de tu campo" class="field_name"/>
+                        <input type="text" name="custom_field_1_value"  id="custom_field_1_value" class="field_value" placeholder="Valor del campo"/>
+                  </div>
+            </div>
+            <fieldset class="ui-grid-b" style="clear:both">
+                  <div class="ui-block-a"></div>
+                  <div class="ui-block-b"></div>
+                  <div class="ui-block-c">
+                        <a data-role="button" data-inline="true" data-theme="d" data-icon="plus" data-iconpos="top" id="add-custom-field-button">Agregar otro dato</a>
+                  </div>
+            </fieldset>
+		<div id="query-result">
+			<div id="query-result-header"></div>
+			<div id="query-result-content"></div>
+		</div>
+	</div>
+
+</div>
+
+</body>
+</html>

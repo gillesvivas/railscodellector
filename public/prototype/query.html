@@ -1,0 +1,123 @@
+<!DOCTYPE html> 
+<html>
+
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1"> 
+	<title>Consulta un código</title>
+	<link rel="stylesheet" href="http://code.jquery.com/mobile/1.0.1/jquery.mobile-1.0.1.min.css" />
+	
+	<script src="http://code.jquery.com/jquery-1.6.4.min.js"></script>
+	<script src="http://code.jquery.com/mobile/1.0.1/jquery.mobile-1.0.1.min.js"></script>
+</head>
+<body>
+<script>
+
+	var d = {};
+	if (typeof String.prototype.startsWith != 'function') {
+	  String.prototype.startsWith = function (str){
+	    return this.indexOf(str) == 0;
+	  };
+	}
+    $(function() {
+
+        $("#code-search-button").click(function() {
+            var theName = $.trim($("#code-search").val());
+
+            if(theName.length > 0)
+            {
+                $.ajax({
+                  type: "GET",
+                  url: "https://api.mongolab.com/api/1/databases/codellector/collections/barcodes/",
+                  data: ({"apiKey": "4f520e86e4b0f7e90235c6e8",
+                  		"q":'{code:"'+theName+'"}',
+                  		"fo":"true"}),
+                  cache: false,
+                  success: onSuccess
+                });
+            }
+        });
+
+        $("#resultLog").ajaxError(function(event, request, settings, exception) {
+          $("#resultLog").html("Error Calling: " + settings.url + "<br />HTPP Code: " + request.status);
+        });
+
+        function onSuccess(data)
+        {
+        	d = data;
+            var header = $("#query-result-header");
+            var content = $("#query-result-content")
+            header.empty();
+            header.append($("<h1>").html(data.code));
+            header.append($("<h2>").html(data.name));
+
+            for (var key in data) {
+            	
+            	var value = data[key];
+            	
+            	if(key.startsWith("_")) continue;
+            	if(key == "code") continue;
+            	if(key == "name") continue;
+            	
+            	content.append($("<h3>").html(key));
+            	var current = $("<ul data-role='listview' data-inset='true'>");
+            	var list_key = key+"-list";
+            	current.attr("id",list_key);
+            	
+            	if($.isArray(value)) 
+            	{
+
+            		for (var i = value.length - 1; i >= 0; i--) {
+            			iter_value_type = $.type(value[i])
+            			if(iter_value_type === "string")
+            			{
+            				iter_value = value[i];	
+            			}
+            			else if(iter_value_type === "object")
+            			{
+            				for(var internal_key in value[i])
+            				{
+            					if($.type(value[i][internal_key]) === "string")
+            					{
+            						iter_value = value[i][internal_key];
+            						break;
+            					}
+            				}
+            			}
+            			current.append($("<li>").append($("<a href='#'>").html(iter_value)));
+            			content.append(current);
+            		};
+            		
+            		
+            	}
+            	else
+            	{
+            		current.append($("<li>").append($("<a href='#'>").html(value)));
+            		content.append(current);
+            	}
+            	$("#"+list_key).listview();
+            };
+
+        }
+
+    });
+</script>
+<div data-role="page">
+	<div data-role="header">
+		<h1>Consulta de código</h1>
+	</div>
+	<div data-role="content">
+		<input type="search" name="code-search" id="code-search" value="9789563451825" placeholder="Ingresa el código aquí" />
+	
+		<button type="submit" id="code-search-button" data-theme="b" >Buscar</button>
+
+		<div id="query-result">
+			<div id="query-result-header"></div>
+			<div id="query-result-content"></div>
+		</div>
+	</div>
+
+</div>
+
+</body>
+</html>
